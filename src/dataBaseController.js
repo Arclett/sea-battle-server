@@ -29,7 +29,6 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-    unique: true,
   },
   gold: {
     type: Number,
@@ -40,19 +39,12 @@ const User = mongoose.model("User", userSchema);
 
 const addUser = async (req) => {
   try {
-    console.log("creating func");
-    await User.create(req.body);
+    const user = await User.create(req.body);
+    return user;
   } catch (err) {
     console.log(err);
   }
 };
-
-// addUser({
-//   body: {
-//     name: "Vitya",
-//     gold: 200,
-//   },
-// });
 
 const getAllUsers = async (res) => {
   try {
