@@ -1,8 +1,10 @@
 const express = require("express");
+const { promisify } = require("util");
 const app = express();
 const http = require("http");
 const server = http.createServer(app);
 const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
 
 const {
   connectToDB,
@@ -20,15 +22,12 @@ const PORT = process.env.PORT || 4000;
 
 connectToDB();
 
-const authToken = "abs"; //this will be replaced with jwt later...may be...
+const secret = "secret-key";
 
 //authorization middleware
 
 io.use(async (socket, next) => {
   const token = socket.handshake.headers["authorization"];
-  if (token === authToken) {
-    return next();
-  }
   if (token === "login") {
     const acc = socket.handshake.headers["user"];
     const pass = socket.handshake.headers["password"];
@@ -43,6 +42,7 @@ io.use(async (socket, next) => {
       return next(new Error("Wrong password"));
     }
     socket.data = data[0];
+    return next();
   }
   if (token === "reg") {
     const acc = socket.handshake.headers["user"];
@@ -58,16 +58,26 @@ io.use(async (socket, next) => {
     const data = { body: { name: acc, password: pass, eMail: email } };
     const userData = await addUser(data);
     socket.data = userData;
+    return next();
   }
-  next();
+  try {
+    const decoded = await promisify(jwt.verify)(token, secret);
+    const data = await getUserByName(decoded.name);
+    socket.data = data[0];
+    return next();
+  } catch (err) {
+    throw new Error("login error");
+  }
 });
 
 //socket events
 
 io.on("connection", async (socket) => {
+  const token = jwt.sign({ name: socket.data.name }, secret);
+  console.log(token);
   console.log(socket.data);
   console.log("connect");
-  socket.emit("auth token", authToken, socket.data);
+  socket.emit("auth token", token, socket.data.name);
 });
 
 io.listen(PORT, () => console.log(`Server running on port ${PORT}`));
