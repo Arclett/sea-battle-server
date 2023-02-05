@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
-const db = `mongodb+srv://admin:${process.env.DB_PASS}@cluster0.1w3zm6d.mongodb.net/sea-battle-db?retryWrites=true&w=majority`;
+const pass = "qwert123";
+const db = `mongodb+srv://admin:${pass}@cluster0.1w3zm6d.mongodb.net/sea-battle-db?retryWrites=true&w=majority`;
 
 const connectToDB = () =>
   mongoose

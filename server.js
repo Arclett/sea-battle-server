@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const { promisify } = require("util");
 const app = express();
@@ -19,10 +18,11 @@ const io = new Server(server, {
     origin: "*",
   },
 });
-
 const PORT = process.env.PORT || 4000;
 
 connectToDB();
+
+const secret = "secret-key";
 
 //authorization middleware
 
@@ -61,19 +61,19 @@ io.use(async (socket, next) => {
     return next();
   }
   try {
-    const decoded = await promisify(jwt.verify)(token, process.env.SECRET);
+    const decoded = await promisify(jwt.verify)(token, secret);
     const data = await getUserByName(decoded.name);
     socket.data = data[0];
     return next();
   } catch (err) {
-    return next(new Error("Authorization failed"));
+    return next(new Error("Authorization Failed!"));
   }
 });
 
 //socket events
 
 io.on("connection", async (socket) => {
-  const token = jwt.sign({ name: socket.data.name }, process.env.SECRET);
+  const token = jwt.sign({ name: socket.data.name }, secret);
   console.log(token);
   console.log(socket.data);
   console.log("connect");
