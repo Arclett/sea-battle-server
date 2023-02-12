@@ -28,6 +28,11 @@ const secret = "secret-key";
 
 io.use(async (socket, next) => {
   const token = socket.handshake.headers["authorization"];
+  console.log(token, "token");
+  if (token === "guest") {
+    socket.data = { name: "guest" };
+    return next();
+  }
   if (token === "login") {
     const acc = socket.handshake.headers["user"];
     const pass = socket.handshake.headers["password"];
@@ -73,18 +78,63 @@ io.use(async (socket, next) => {
 //socket events
 
 io.on("connection", async (socket) => {
-  const token = jwt.sign({ name: socket.data.name }, secret);
-  console.log(token);
-  console.log(socket.data);
-  console.log("connect");
-  const userData = {
-    userName: socket.data.name,
-    userGold: socket.data.gold,
-    currentFrame: socket.data.currentFrame,
-    currentShipSkin: socket.data.currentShipSkin,
-    currentFieldSkin: socket.data.currentFieldSkin,
-  };
-  socket.emit("auth token", token, userData);
+  //authorized users
+
+  if (socket.data.name !== "guest") {
+    const token = jwt.sign({ name: socket.data.name }, secret);
+    console.log(token);
+    console.log(socket.data);
+    console.log("connect");
+    const userData = {
+      userName: socket.data.name,
+
+      userGold: socket.data.gold,
+      currentFrame: socket.data.currentFrame,
+      currentShipSkin: socket.data.currentShipSkin,
+      currentFieldSkin: socket.data.currentFieldSkin,
+    };
+    socket.emit("auth token", token, userData);
+    socket.join("main-room");
+    // console.log(io.sockets.sockets);
+    socket.on("send to chat", (text) => {
+      io.to("main-room").emit("chat message", `${socket.data.name}: ${text}`);
+    });
+
+    //random matchmaking
+
+    socket.on("find random", () => {
+      socket.leave("main-room");
+      const rooms = io.of("/").adapter.rooms;
+      const findRooms = rooms.get("find-room");
+      if (!findRooms) {
+        socket.join("find-room");
+      } else {
+        const opp = Array.from(findRooms)[0];
+        socket.to(opp).emit("start battle", socket.id);
+        io.to(socket.id).emit("start battle", opp);
+      }
+
+      //find opponent by name
+    });
+
+    socket.on("cancel", () => {
+      socket.join("main-room");
+      socket.leave("find-room");
+      socket.leave("test-room");
+    });
+
+    // socket.on("send link", () => {
+    //   socket.leave("main-room");
+    // });
+  }
+  if (socket.data.name === "guest") {
+    console.log("guest connect!");
+    socket.on("join by link", (user) => {
+      io.to(user).leave("main-room");
+      socket.to(user).emit("start battle", socket.id);
+      io.to(socket.id).emit("start battle", user);
+    });
+  }
 });
 
 io.listen(PORT, () => console.log(`Server running on port ${PORT}`));
