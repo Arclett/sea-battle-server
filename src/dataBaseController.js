@@ -32,19 +32,35 @@ const userSchema = new mongoose.Schema({
   },
   gold: {
     type: Number,
-    default: 0,
+    default: 1000,
   },
-  currentFrame: {
-    type: String,
-    default: "default",
+  exp: {
+    type: Number,
+    default: 650,
   },
   currentShipSkin: {
     type: String,
-    default: "default",
+    default: "school",
   },
   currentFieldSkin: {
     type: String,
     default: "default",
+  },
+  obtShipSkins: {
+    type: String,
+    default: "school",
+  },
+  obtFieldSkins: {
+    type: String,
+    default: "default",
+  },
+  winsPvP: {
+    type: Number,
+    default: 0,
+  },
+  winsPvE: {
+    type: Number,
+    default: 0,
   },
 });
 
@@ -76,7 +92,7 @@ const getUserByName = async (userName) => {
 };
 
 const getUserByEmail = async (email) => {
-  const data = await User.find({ email: email });
+  const data = await User.find({ eMail: email });
   return data;
 };
 

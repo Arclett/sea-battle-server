@@ -11,6 +11,7 @@ const {
   getUserByName,
   getUserByEmail,
   addUser,
+  updateUser,
 } = require("./src/dataBaseController");
 
 const io = new Server(server, {
@@ -58,6 +59,8 @@ io.use(async (socket, next) => {
     if (userCheck[0])
       return next(new Error("User with this Name already exist!"));
     const emailCheck = await getUserByEmail(email);
+    console.log(email);
+    console.log(emailCheck);
     if (emailCheck[0])
       return next(new Error("User with this Email already exist!"));
     const data = { body: { name: acc, password: pass, eMail: email } };
@@ -86,13 +89,17 @@ io.on("connection", async (socket) => {
     console.log(socket.data);
     console.log("connect");
     const userData = {
-      userName: socket.data.name,
-
-      userGold: socket.data.gold,
-      currentFrame: socket.data.currentFrame,
+      name: socket.data.name,
+      exp: socket.data.exp,
+      gold: socket.data.gold,
       currentShipSkin: socket.data.currentShipSkin,
       currentFieldSkin: socket.data.currentFieldSkin,
+      obtShipSkins: socket.data.obtShipSkins,
+      obtFieldSkins: socket.data.obtFieldSkins,
+      winsPvP: socket.data.winsPvP,
+      winsPvE: socket.data.winsPvE,
     };
+    console.log(userData);
     socket.emit("auth token", token, userData);
     socket.join("main-room");
     // console.log(io.sockets.sockets);
@@ -117,6 +124,12 @@ io.on("connection", async (socket) => {
       //find opponent by name
     });
 
+    socket.on("join by link", (user) => {
+      // io.to(user).leave("main-room");
+      socket.to(user).emit("start battle", socket.id);
+      io.to(socket.id).emit("start battle", user);
+    });
+
     socket.on("cancel", () => {
       socket.join("main-room");
       socket.leave("find-room");
@@ -126,15 +139,38 @@ io.on("connection", async (socket) => {
     // socket.on("send link", () => {
     //   socket.leave("main-room");
     // });
+
+    socket.on("update user", async (data) => {
+      await updateUser(data.name, data);
+      socket.emit("update complete");
+    });
   }
   if (socket.data.name === "guest") {
     console.log("guest connect!");
     socket.on("join by link", (user) => {
-      io.to(user).leave("main-room");
+      // io.to(user).leave("main-room");
       socket.to(user).emit("start battle", socket.id);
       io.to(socket.id).emit("start battle", user);
     });
   }
+
+  socket.on("ship placement complete", (opp, shipsData) => {
+    socket.to(opp).emit("placement ready", shipsData);
+  });
+
+  socket.on("placement over", (opp, shipsData) => {
+    const flip = Math.round(Math.random() * 10);
+    if (flip > 5) {
+      socket.emit("start game", "first");
+      socket.to(opp).emit("start game", "second", shipsData);
+    } else {
+      socket.emit("start game", "second");
+      socket.to(opp).emit("start game", "first", shipsData);
+    }
+  });
+  socket.on("enemy turn", (opp, matrix, shipsData) => {
+    socket.to(opp).emit("my turn", matrix, shipsData);
+  });
 });
 
 io.listen(PORT, () => console.log(`Server running on port ${PORT}`));
