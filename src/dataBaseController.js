@@ -78,7 +78,6 @@ const addUser = async (req) => {
 const getAllUsers = async (res) => {
   try {
     const data = await User.find();
-    console.log(data);
   } catch (err) {
     res.status(404).json({
       status: "fail",

@@ -29,7 +29,6 @@ const secret = "secret-key";
 
 io.use(async (socket, next) => {
   const token = socket.handshake.headers["authorization"];
-  console.log(token, "token");
   if (token === "guest") {
     socket.data = { name: "guest" };
     return next();
@@ -106,25 +105,24 @@ io.on("connection", async (socket) => {
       socket.leave("main-room");
       const rooms = io.of("/").adapter.rooms;
       const findRooms = rooms.get("find-room");
-      console.log("find rooms after", rooms.get("find-room"));
       if (!findRooms) {
         socket.join("find-room");
       } else {
         const opp = Array.from(findRooms)[0];
         io.in("find-room").socketsLeave("find-room");
-        console.log("HOP HEY!", io.sockets.sockets.get(opp).data);
-        console.log(userData);
         const enemy = io.sockets.sockets.get(opp).data;
-        console.log("find rooms after", rooms.get("find-room"));
+        if (enemy.name === userData.name) {
+          socket.leave("find-room");
+          socket.join("main-room");
+          socket.emit("to main page");
+          return;
+        }
         socket.to(opp).emit("start battle", socket.id, userData);
         io.to(socket.id).emit("start battle", opp, enemy);
       }
-
-      //find opponent by name
     });
 
     socket.on("join by link", (user) => {
-      // io.to(user).leave("main-room");
       socket.to(user).emit("start battle", socket.id);
       io.to(socket.id).emit("start battle", user);
     });
@@ -134,10 +132,6 @@ io.on("connection", async (socket) => {
       socket.leave("find-room");
       socket.leave("test-room");
     });
-
-    // socket.on("send link", () => {
-    //   socket.leave("main-room");
-    // });
 
     socket.on("update user", async (data) => {
       await updateUser(data.name, data);
@@ -150,9 +144,7 @@ io.on("connection", async (socket) => {
     });
   }
   if (socket.data.name === "guest") {
-    console.log("guest connect!");
     socket.on("join by link", (user) => {
-      // io.to(user).leave("main-room");
       socket.to(user).emit("start battle", socket.id);
       io.to(socket.id).emit("start battle", user);
     });
@@ -180,8 +172,6 @@ io.on("connection", async (socket) => {
     socket.to(opp).emit("lose");
   });
   socket.on("disconnecting", () => {
-    console.log(socket.id);
-    console.log("discon");
     io.emit("user leave", socket.id);
   });
 });
