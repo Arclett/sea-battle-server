@@ -59,8 +59,6 @@ io.use(async (socket, next) => {
     if (userCheck[0])
       return next(new Error("User with this Name already exist!"));
     const emailCheck = await getUserByEmail(email);
-    console.log(email);
-    console.log(emailCheck);
     if (emailCheck[0])
       return next(new Error("User with this Email already exist!"));
     const data = { body: { name: acc, password: pass, eMail: email } };
@@ -85,9 +83,6 @@ io.on("connection", async (socket) => {
 
   if (socket.data.name !== "guest") {
     const token = jwt.sign({ name: socket.data.name }, secret);
-    console.log(token);
-    console.log(socket.data);
-    console.log("connect");
     const userData = {
       name: socket.data.name,
       exp: socket.data.exp,
@@ -99,10 +94,8 @@ io.on("connection", async (socket) => {
       winsPvP: socket.data.winsPvP,
       winsPvE: socket.data.winsPvE,
     };
-    console.log(userData);
     socket.emit("auth token", token, userData);
     socket.join("main-room");
-    // console.log(io.sockets.sockets);
     socket.on("send to chat", (text) => {
       io.to("main-room").emit("chat message", `${socket.data.name}: ${text}`);
     });
@@ -113,12 +106,18 @@ io.on("connection", async (socket) => {
       socket.leave("main-room");
       const rooms = io.of("/").adapter.rooms;
       const findRooms = rooms.get("find-room");
+      console.log("find rooms after", rooms.get("find-room"));
       if (!findRooms) {
         socket.join("find-room");
       } else {
         const opp = Array.from(findRooms)[0];
-        socket.to(opp).emit("start battle", socket.id);
-        io.to(socket.id).emit("start battle", opp);
+        io.in("find-room").socketsLeave("find-room");
+        console.log("HOP HEY!", io.sockets.sockets.get(opp).data);
+        console.log(userData);
+        const enemy = io.sockets.sockets.get(opp).data;
+        console.log("find rooms after", rooms.get("find-room"));
+        socket.to(opp).emit("start battle", socket.id, userData);
+        io.to(socket.id).emit("start battle", opp, enemy);
       }
 
       //find opponent by name
@@ -143,6 +142,11 @@ io.on("connection", async (socket) => {
     socket.on("update user", async (data) => {
       await updateUser(data.name, data);
       socket.emit("update complete");
+    });
+
+    socket.on("update winner", async (data, multi) => {
+      await updateUser(data.name, data);
+      socket.emit("winner updated", multi);
     });
   }
   if (socket.data.name === "guest") {
@@ -170,6 +174,15 @@ io.on("connection", async (socket) => {
   });
   socket.on("enemy turn", (opp, matrix, shipsData) => {
     socket.to(opp).emit("my turn", matrix, shipsData);
+  });
+
+  socket.on("winner", (opp) => {
+    socket.to(opp).emit("lose");
+  });
+  socket.on("disconnecting", () => {
+    console.log(socket.id);
+    console.log("discon");
+    io.emit("user leave", socket.id);
   });
 });
 
