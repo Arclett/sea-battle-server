@@ -37,6 +37,9 @@ io.use(async (socket, next) => {
     const acc = socket.handshake.headers["user"];
     const pass = socket.handshake.headers["password"];
     let data;
+    if (!acc) {
+      return next(new Error("Something wrong..."));
+    }
     if (acc.includes("@") && acc.includes(".")) {
       data = await getUserByEmail(acc);
     } else {
